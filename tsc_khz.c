@@ -1,34 +1,49 @@
 // SPDX-License-Identifier: GPL-2.0-only
+
+#include <linux/module.h>
+#include <linux/device/bus.h>
+#include <linux/cpu.h>
+#include <linux/sysfs.h>
+#include <asm/tsc.h>
+
+#ifdef pr_fmt
+	#undef pr_fmt
+#endif
+
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/tsc.h>
-#include <linux/cpu.h>
-#include <linux/module.h>
-#include <linux/sysfs.h>
-
-
 /* sysfs file to export tsc_khz */
-static ssize_t tsc_khz_show(struct kobject *kobj,
-			    struct kobj_attribute *attr, char *buf)
+static ssize_t tsc_khz_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%u\n", tsc_khz);
 }
 
-struct kobj_attribute tsc_khz_attr = __ATTR_RO(tsc_khz);
+static DEVICE_ATTR_RO(tsc_khz);
 
 static int __init init_tsc_khz(void)
 {
-	if (!sysfs_create_file(&cpu_subsys.dev_root->kobj, &tsc_khz_attr.attr))
-		pr_info("tsc_khz exported in sysfs");
-	else
-		pr_warn("tsc_khz failed to be exported in sysfs");
+	struct device *dev = bus_get_dev_root(&cpu_subsys);
+	int ret = -ENODEV;
 
-	return 0;
+	if (dev) {
+		ret = sysfs_create_file(&dev->kobj, &dev_attr_tsc_khz.attr);
+		put_device(dev);
+	}
+
+	pr_info("tsc_khz exported in sysfs, ret=%d", ret);
+
+	return ret;
 }
 
 static void __exit cleanup_tsc_khz(void)
 {
-	sysfs_remove_file(&cpu_subsys.dev_root->kobj, &tsc_khz_attr.attr);
+	struct device *dev = bus_get_dev_root(&cpu_subsys);
+
+	if (dev) {
+		sysfs_remove_file(&dev->kobj, &dev_attr_tsc_khz.attr);
+		put_device(dev);
+	}
 
 	pr_info("tsc_khz unexported from sysfs");
 }
