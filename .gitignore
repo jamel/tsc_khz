@@ -1,0 +1,12 @@
+# build artifacts
+*.cmd
+*.ko
+*.o
+*.mod
+*.mod.c
+Module.symvers
+modules.order
+
+# clangd
+.cache/
+compile_commands.json
